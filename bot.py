@@ -74,13 +74,21 @@ async def on_message(message):
     if message.author.bot:
         return
     
+    if message.reference and message.reference.resolved: # is the message a reply to something?
+        replied_to = message.reference.resolved 
+
+        if bot.user and replied_to.author.id == bot.user.id: # is the reply directed towards the bot?
+            sentence = text_model.make_short_sentence(80, tries=100)
+            if sentence:
+                await message.reply(sentence)
+
     global globalMsg
     if message.content:
         store_message(message.content)
         globalMsg += 1
         
     if random.random() < 0.02:
-        sentence = text_model.make_short_sentence(180, tries=100)
+        sentence = text_model.make_short_sentence(140, tries=100)
         print(repr(sentence))
         if sentence:
             await message.channel.send(sentence)
