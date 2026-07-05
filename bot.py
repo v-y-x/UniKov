@@ -158,7 +158,9 @@ async def on_command_error(ctx, error):
         await ctx.send(f"command on cooldown! try in {error.retry_after:.1f}s")
     elif isinstance(error, commands.MemberNotFound):
         await ctx.send('couldn\'t find that member, recheck the ID or mention')
+        ctx.command.reset_cooldown(ctx)
     elif isinstance(error, commands.MissingRequiredArgument):
+        ctx.command.reset_cooldown(ctx)
         await ctx.send('you must input all fields in the command.')
     else:
         print(f"Unhandled error: {error}")
