@@ -10,10 +10,12 @@ from datetime import timedelta
 from dotenv import load_dotenv
 load_dotenv()
 
+user_flags = {}
+
 bot_token = os.getenv("BOT_KEY")
 assert bot_token is not None, "Token not found in .env"
 
-def store_message(message):
+def store_message(message): # stores messages from chats
     print(f"storing: {message[:50]}")
     with open("messages.txt", 'a', encoding='utf-8') as f:
         f.write(f"{message}\n")
@@ -22,6 +24,7 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w'
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 
 bot = commands.Bot(command_prefix='&', intents=intents)
 
@@ -70,7 +73,7 @@ async def total(ctx):
     await ctx.send(f"my current message count is {globalMsg}")
 
 @bot.command()
-@commands.cooldown(1, 240, commands.BucketType.default)
+@commands.cooldown(1, 240, commands.BucketType.default) # 4 minute cooldown
 async def markov(ctx):
     global text_model
     sentence = text_model.make_sentence(tries=100)
@@ -111,11 +114,13 @@ async def on_message(message):
 
     if random.random() < 0.005: # .5% chance
         try:
-            if random.random() < .2: # 20% chance
+            roll = random.random()
+            if roll < .05: # 5% chance
                 await message.author.timeout(timedelta(minutes=3))
                 await message.channel.send(f'{message.author.mention} stepped on a super landmine! 💥 timed out for 3m')
+                return
 
-            elif random.random() < .1: # 10% chance
+            elif roll < .20: # 15% chance
                 await message.author.timeout(timedelta(minutes=1))
                 await message.channel.send(f'{message.author.mention} stepped on a nuke!! ☢️💥 5 people are timed out for 1m')
 
@@ -131,12 +136,19 @@ async def on_message(message):
                         await message.channel.send(f'{msg.author.mention} is poisoned by fallout! ☢️')
                     except discord.Forbidden:
                         await message.channel.send(f'{msg.author.mention} is immune to fallout! ☢️') # fall back if no perms to timeout
+                return
 
-            else:
+            else: # 80% chance
                 await message.author.timeout(timedelta(minutes=1))
                 await message.channel.send(f'{message.author.mention} stepped on a landmine! 💥 timed out for 1m')
         except discord.Forbidden:
             await message.channel.send(f'{message.author.mention} stepped on a land mine 💥, but is immune!') # fall back if no perms to timeout
+
+    if user_flags.get(message.author.id, {}).get("planted"): # checks if they have the planted flag
+        setter_id = user_flags[message.author.id]["set_by"]
+        await message.author.timeout(timedelta(minutes=1))
+        await message.channel.send(f'{message.author.mention} has been bombed! 💥 they are timed out for 1m. the bomb was planted by <@{setter_id}>')
+        del user_flags[message.author.id] # remove ID after execution
 
     await bot.process_commands(message) 
 
@@ -144,6 +156,10 @@ async def on_message(message):
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"command on cooldown! try in {error.retry_after:.1f}s")
+    elif isinstance(error, commands.MemberNotFound):
+        await ctx.send('couldn\'t find that member, recheck the ID or mention')
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send('you must input all fields in the command.')
     else:
         print(f"Unhandled error: {error}")
         raise error
@@ -156,6 +172,22 @@ async def on_ready():
 @bot.command()
 async def hello(ctx):
       await ctx.channel.send('Hello!')
+
+@bot.command()
+@commands.cooldown(1, 3600, commands.BucketType.user) # 1 hour cooldown
+async def plant(ctx, user: discord.Member):
+    bot_member = ctx.guild.me # get object data of the bot
+
+    if user.top_role >= bot_member.top_role: # prevent planting if the user has a higher role than the bot, failsafe
+        await ctx.author.timeout(timedelta(minutes=1))
+        await ctx.send(f'{ctx.author.mention} tried planting a bomb on {user.mention}, but it backfired! 💥 timed out for 1 minute') # lol
+        return
+
+    user_flags[user.id] = {
+        "planted" : True, # set flag to true for that user
+        "set_by" : ctx.author.id # id of user that planted it
+    }
+    await ctx.send(f'bomb planted on {user}')
 
 @tasks.loop(minutes=5) # task loop that refreshes markov model every 5 minutes
 async def rebuild():
