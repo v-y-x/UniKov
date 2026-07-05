@@ -4,6 +4,7 @@ from discord.ext import commands
 from discord.ext import tasks
 import markovify
 import asyncio
+import random
 import logging
 import random
 import time
@@ -127,7 +128,8 @@ async def on_message(message):
 
                 messages = []
                 async for msg in message.channel.history(limit=5):
-                    messages.append(msg)
+                    if msg.author.id != message.author.id or msg.author.id != message.guild.me:
+                        messages.append(msg)
 
                 for msg in reversed(messages):
                     if msg.author.id == message.author.id: # skip the user that triggered this, cause they're already muted from earlier
@@ -145,10 +147,22 @@ async def on_message(message):
         except discord.Forbidden:
             await message.channel.send(f'{message.author.mention} stepped on a land mine 💥, but is immune!') # fall back if no perms to timeout
 
-    if user_flags.get(message.author.id, {}).get("planted"): # checks if they have the planted flag
-        setter_id = user_flags[message.author.id]["set_by"]
-        await message.author.timeout(timedelta(minutes=1))
-        await message.channel.send(f'{message.author.mention} has been bombed! 💥 they are timed out for 1m. the bomb was planted by <@{setter_id}>')
+    if user_flags.get(message.author.id, {}).get("planted", 0) > 0: # checks if they have the planted flag
+        bombs_planted = user_flags[message.author.id]["planted"]
+        setters = user_flags[message.author.id]["set_by"]
+
+        timeout_time = 60
+    
+        if bombs_planted > 1: 
+            setter_mentions = ", ".join(f'<@{sid}>' for sid in setters) # gets all the IDs of the planters
+            timeout_time = timeout_time * bombs_planted * 1.2 # 60 * 2(minimum) * 1.2
+            await message.author.timeout(timedelta(seconds=timeout_time))
+            await message.channel.send(f'{message.author.mention} had {bombs_planted} bombs go off!! 💥 they are timed out for {int(timeout_time)}s. the bombs were planted by {setter_mentions}')
+        
+        else:
+            await message.author.timeout(timedelta(seconds=timeout_time))
+            await message.channel.send(f'{message.author.mention} has been bombed! 💥 they are timed out for 1m. the bomb was planted by <@{setters[0]}>')
+        
         del user_flags[message.author.id] # remove ID after execution
 
     await bot.process_commands(message) 
@@ -175,45 +189,24 @@ async def on_ready():
 @bot.command()
 async def hello(ctx):
       await ctx.channel.send('Hello!')
-
+      
 @bot.command()
-@commands.cooldown(1, 3600, commands.BucketType.user) # 1 hour cooldown
+@commands.cooldown(1, 5400, commands.BucketType.user) # 1.5 hour cooldown
 async def plant(ctx, user: discord.Member):
     bot_member = ctx.guild.me # get object data of the bot
-
-    if user == ctx.author:
-        await ctx.send(f'{ctx.author.mention} has strapped a bomb to their chest! The bomb will explode in 5 seconds, muting them and 3 people in chat!')
-        await asyncio.sleep(5)
-        
-        messages = []
-        async for msg in ctx.channel.history(limit=4):
-            if msg.id != ctx.message.id:
-                messages.append(msg)
-            messages = messages[:3]
-        
-        await ctx.send(f'{ctx.author.mention} blew himself up! 💥 timed out for 1 minute')
-        await ctx.author.timeout(timedelta(minutes=1))
-        
-        for msg in messages:
-            if msg.author.id == ctx.author.id: # if needed, skip the user that triggered this
-                continue
-            try:
-                await msg.author.timeout(timedelta(minutes=1))
-                await ctx.channel.send(f'{msg.author.mention} was blown up by {ctx.author.mention}! 💥 timed out for 1 minute')
-            except discord.Forbidden:
-                await ctx.channel.send(f'{msg.author.mention} is immune! 💥') # fall back if no perms to timeout
-        return
 
     if user.top_role >= bot_member.top_role: # prevent planting if the user has a higher role than the bot, failsafe
         await ctx.author.timeout(timedelta(minutes=1))
         await ctx.send(f'{ctx.author.mention} tried planting a bomb on {user.mention}, but it backfired! 💥 timed out for 1 minute') # lol
         return
 
-    user_flags[user.id] = {
-        "planted" : True, # set flag to true for that user
-        "set_by" : ctx.author.id # id of user that planted it
-    }
-    await ctx.send(f'bomb planted on {user}')
+    if user.id not in user_flags:
+        user_flags[user.id] = {"planted": 0, "set_by": []}
+
+    user_flags[user.id]["planted"] += 1
+    user_flags[user.id]["set_by"].append(ctx.author.id)
+
+    await ctx.send(f'bomb planted on {user}. they currently have {user_flags[user.id]["planted"]} bomb(s)')
 
 @tasks.loop(minutes=5) # task loop that refreshes markov model every 5 minutes
 async def rebuild():
