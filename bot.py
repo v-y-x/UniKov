@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 from discord.ext import tasks
 import markovify
+import asyncio
 import logging
 import random
 import time
@@ -179,6 +180,29 @@ async def hello(ctx):
 @commands.cooldown(1, 3600, commands.BucketType.user) # 1 hour cooldown
 async def plant(ctx, user: discord.Member):
     bot_member = ctx.guild.me # get object data of the bot
+
+    if user == ctx.author:
+        await ctx.send(f'{ctx.author.mention} has strapped a bomb to their chest! The bomb will explode in 5 seconds, muting them and 3 people in chat!')
+        await asyncio.sleep(5)
+        
+        messages = []
+        async for msg in ctx.channel.history(limit=4):
+            if msg.id != ctx.message.id:
+                messages.append(msg)
+            messages = messages[:3]
+        
+        await ctx.send(f'{ctx.author.mention} blew himself up! 💥 timed out for 1 minute')
+        await ctx.author.timeout(timedelta(minutes=1))
+        
+        for msg in messages:
+            if msg.author.id == ctx.author.id: # if needed, skip the user that triggered this
+                continue
+            try:
+                await msg.author.timeout(timedelta(minutes=1))
+                await ctx.channel.send(f'{msg.author.mention} was blown up by {ctx.author.mention}! 💥 timed out for 1 minute')
+            except discord.Forbidden:
+                await ctx.channel.send(f'{msg.author.mention} is immune! 💥') # fall back if no perms to timeout
+        return
 
     if user.top_role >= bot_member.top_role: # prevent planting if the user has a higher role than the bot, failsafe
         await ctx.author.timeout(timedelta(minutes=1))
