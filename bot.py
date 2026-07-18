@@ -1,6 +1,7 @@
 import os
 import discord
 from discord.ext import commands
+from discord.ext.commands import has_permissions
 from discord.ext import tasks
 import markovify
 import random
@@ -9,9 +10,11 @@ import random
 import time
 from datetime import timedelta
 from dotenv import load_dotenv
-load_dotenv()
+import asyncio
 
-user_flags = {}
+import state
+
+load_dotenv()
 
 bot_token = os.getenv("BOT_KEY") # get token from .env file
 assert bot_token is not None, "Token not found in .env" # pylance ignore
@@ -24,37 +27,13 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='&', intents=intents)
 
-# general functions #
-
-def store_message(message): # stores messages from chats
-    print(f"storing: {message[:50]}, current total: {globalMsg}")
-    with open("messages.txt", 'a', encoding='utf-8') as f:
-        f.write(f"{message}\n")
-
-def get_line_count(): # get the current global message count, equal to the amount of lines in messages.txt
-    if not os.path.exists('messages.txt'):
-        return 0
-    with open('messages.txt', encoding='utf-8') as f:
-        return sum(1 for _ in f)
-
-globalMsg = get_line_count() # global count equals to current amount of lines in .txt
-
-async def get_chat_history(src, amount): # general function for searching chat history
-    messages = []
-    async for msg in src.channel.history(limit=amount):
-        if not msg.author.bot and msg.author.id != src.author.id:
-            messages.append(msg)
-    return messages;
-
 # commands #
 
 @bot.command()
+@has_permissions(administrator=True) # prevent from executing unless the user has admin 
 async def scrape(ctx, amount : int = 1000):
-    if ctx.author.id != 548578270808113173: # prevent anyone except me from executing
-        await ctx.send('not authorized')
-        return
+    """ [number] | Reads the chat history of the current channel"""
 
-    global globalMsg
     progMsg =  await ctx.send("scraping... [░░░░░░░░░░░░░░░░░░░░] 0%")
     msgCount = 0
     update_every = max(1, amount // 20)
@@ -62,9 +41,9 @@ async def scrape(ctx, amount : int = 1000):
     async for msg in ctx.channel.history(limit=amount): # specialized chat history search function
         print(f"checking: {msg.content[:30]!r}, author bot: {msg.author.bot}")
         if not msg.author.bot and not msg.content.startswith(('&', '!', '.', '?')):
-            store_message(msg.content)   
+            state.store_message(msg.content, msg.guild.id)
             msgCount += 1
-            globalMsg += 1
+            state.globalMsg[msg.guild.id] = state.globalMsg.get(msg.guild.id, 0) + 1
 
             if msgCount % update_every == 0 or msgCount == amount:
                 percent = int((msgCount / amount) * 100)
@@ -72,148 +51,64 @@ async def scrape(ctx, amount : int = 1000):
                 bar = "█" * filled + "░" * (20 - filled)
                 await progMsg.edit(content=f"scraping... [{bar}] {percent}%")
     
-    await progMsg.edit(content=f"{msgCount} messages scraped! current total: {globalMsg}")
+    await progMsg.edit(content=f"{msgCount} messages scraped! current total: {state.globalMsg.get(ctx.guild.id, 0)}")
     
 @bot.command()
 async def token(ctx): # i don't even know why i made this
+    """Shows the bot token"""
     await ctx.send(f"OPSEC LEVEL: SIGMA DEMON. NO TOKEN FOR U BLUD")
     await ctx.author.timeout(timedelta(minutes=1)) 
 
 @bot.command()
 async def total(ctx):
-    global globalMsg
-    await ctx.send(f"my current message count is {globalMsg}")
-
-@bot.command()
-@commands.cooldown(1, 240, commands.BucketType.default) # 4 minute cooldown
-async def markov(ctx): # manual message generation
-    global text_model
-    sentence = text_model.make_sentence(tries=100)
-    print(repr(sentence))
-    if sentence:
-        await ctx.send(sentence)
+    """Shows total message count in current server"""
+    count = state.globalMsg.get(ctx.guild.id, 0)
+    await ctx.send(f"my current message count is {count}")
 
 @bot.command()
 async def hello(ctx): # hello!
-      await ctx.channel.send('Hello!')
-      
+    """Hello!"""
+    await ctx.channel.send('Hello!')
+
 @bot.command()
-@commands.cooldown(1, 5400, commands.BucketType.user) # 1.5 hour cooldown
-async def plant(ctx, user: str):
-    bot_member = ctx.guild.me # get object data of the bot
-    
-    if user.lower() == 'random':
-        messages = await get_chat_history(ctx, 15)
-        randMsg = random.choice(messages)
-        member = randMsg.author
-    else:
-        try:
-            member = await commands.MemberConverter().convert(ctx, user)
-        except commands.MemberNotFound:
-            await ctx.send('couldn\'t find member, re-check ID or mention.')
-            return
-
-    if member.top_role >= bot_member.top_role: # prevent planting if the user has a higher role than the bot, failsafe
-        try:
-            await ctx.author.timeout(timedelta(minutes=1))
-            await ctx.send(f'{ctx.author.mention} tried planting a bomb on {member.mention}, but it backfired! 💥 timed out for 1 minute') # lol
-            return
-        except discord.Forbidden:
-            await ctx.send(f'everybody is fucking immune.') # fall back when staff on staff violence
-            return
-
-    if member.id not in user_flags:
-        user_flags[member.id] = {"planted": 0, "set_by": []}
-
-    user_flags[member.id]["planted"] += 1
-    user_flags[member.id]["set_by"].append(ctx.author.id)
-
-    await ctx.send(f'bomb planted on {member}. they currently have {user_flags[member.id]["planted"]} bomb(s)')
-    print(f'bomb planted on {member} by {ctx.author}.')
+@commands.is_owner()
+async def reload(ctx, extension: str):
+    """Hot-reloads a cog extension. Only executable by bot owner."""
+    try:
+        await bot.reload_extension(f'cogs.{extension}')
+        await ctx.send(f'reloaded {extension}!')
+    except Exception as e:
+        await ctx.send(f'failed to reload {extension} cog: {e}')
 
 # bot events #
-
-last_reply_time = 0
-REPLY_CD = 5
-
 @bot.event
-async def on_message(message): # triggers on any message sent in any accessible channel
-    if message.author.bot: # ignore if message is a bot
+async def on_message(message):
+    if message.author.bot:
         return
+
+    model = state.text_models.get(message.guild.id)
+    if model:
+        if message.reference and message.reference.resolved: # is the message a reply to something?
+            replied_to = message.reference.resolved 
+            if bot.user and replied_to.author.id == bot.user.id: # is the reply directed towards the bot?
+                now = time.time()
+                if now - state.last_reply_time >= state.REPLY_CD: # checks whether the last replying message is more than REPLY_CD seconds ago
+                    sentence = model.make_short_sentence(80, tries=100) # 80 char limit
+                    if sentence:
+                        await message.reply(sentence)
+                        state.last_reply_time = now
+
+        if random.random() < 0.01: # 1% chance
+            sentence = model.make_short_sentence(140, tries=100)
+            if sentence:
+                await message.channel.send(sentence)
     
-    global text_model, last_reply_time, globalMsg # assign variables
-
-    if message.reference and message.reference.resolved: # is the message a reply to something?
-        replied_to = message.reference.resolved 
-        if bot.user and replied_to.author.id == bot.user.id: # is the reply directed towards the bot?
-            now = time.time()
-            if now - last_reply_time >= REPLY_CD: # checks whether the last replying message is more than REPLY_CD seconds ago
-                sentence = text_model.make_short_sentence(80, tries=100) # 80 char limit
-                if sentence:
-                    await message.reply(sentence)
-                    last_reply_time = now
-
     if message.content:
         if not message.author.bot and not message.content.startswith(('&', '!', '.', '?')):
-            store_message(message.content)
-            globalMsg += 1 # add to the global count
-        
-    if random.random() < 0.01: # 1% chance
-        sentence = text_model.make_short_sentence(140, tries=100)
-        if sentence:
-            await message.channel.send(sentence)
+            state.store_message(message.content, message.guild.id)
+            state.globalMsg[message.guild.id] = state.globalMsg.get(message.guild.id, 0) + 1 # add to message count for this server
 
-    if random.random() < 0.003: # .3% chance
-        try:
-            roll = random.random()
-            if roll < .20: # 15% chance
-                await message.author.timeout(timedelta(minutes=3))
-                await message.channel.send(f'{message.author.mention} stepped on a super landmine! 💥 timed out for 3m')
-                return
-
-            elif roll < .05: # 5% chance
-                await message.author.timeout(timedelta(minutes=1))
-                await message.channel.send(f'{message.author.mention} stepped on a nuke!! ☢️💥 5 people are timed out for 1m')
-
-                messages = await get_chat_history(message, 5)
-                for msg in messages:
-                    try:
-                        await msg.author.timeout(timedelta(minutes=1))
-                        await message.channel.send(f'{msg.author.mention} is poisoned by fallout! ☢️')
-                    except discord.Forbidden:
-                        await message.channel.send(f'{msg.author.mention} is immune to fallout! ☢️') # fall back if no perms to timeout
-                return
-
-            else: # 80% chance
-                await message.author.timeout(timedelta(minutes=1))
-                await message.channel.send(f'{message.author.mention} stepped on a landmine! 💥 timed out for 1m')
-        except discord.Forbidden:
-            await message.channel.send(f'{message.author.mention} stepped on a land mine 💥, but is immune!') # fall back if no perms to timeout
-
-    if user_flags.get(message.author.id, {}).get("planted", 0) > 0: # checks if they have the planted flag
-        bombs_planted = user_flags[message.author.id]["planted"]
-        setters = user_flags[message.author.id]["set_by"]
-
-        timeout_time = 60
-    
-        if bombs_planted > 1: 
-            setter_mentions = ", ".join(f'<@{sid}>' for sid in setters) # gets all the IDs of the planters
-            timeout_time = timeout_time * bombs_planted * (1 + (bombs_planted / 20))# e.g. 60 * 2 * ( 1 + ( 2 / 20 )) = 132s 
-            await message.author.timeout(timedelta(seconds=timeout_time))
-            await message.channel.send(f'{message.author.mention} had {bombs_planted} bombs go off!! 💥 they are timed out for {int(timeout_time / 60)}m. the bombs were planted by {setter_mentions}')
-        
-        else:
-            await message.author.timeout(timedelta(seconds=timeout_time))
-            await message.channel.send(f'{message.author.mention} has been bombed! 💥 they are timed out for 1m. the bomb was planted by <@{setters[0]}>')
-        
-        del user_flags[message.author.id] # remove ID after execution
-
-    await bot.process_commands(message) 
-
-@bot.event
-async def on_ready():
-    print(f'We have logged in as {bot.user}')
-    rebuild.start() # run rebuild task on start
+    await bot.process_commands(message)
 
 # command errors #
 
@@ -226,7 +121,9 @@ async def on_command_error(ctx, error):
         ctx.command.reset_cooldown(ctx)
     elif isinstance(error, commands.MissingRequiredArgument):
         ctx.command.reset_cooldown(ctx)
-        await ctx.send('you must input all arguments in the command.')
+        await ctx.send('missing arguments')
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send('you are missing required permissions run the command')
     else:
         print(f"Unhandled error: {error}")
         raise error
@@ -235,9 +132,25 @@ async def on_command_error(ctx, error):
 
 @tasks.loop(minutes=5) # task loop that refreshes markov model every 5 minutes
 async def rebuild():
-    global text_model
-    with open("messages.txt", encoding="utf-8") as f:
-        text = f.read()
-        text_model = markovify.Text(text)
+    if not os.path.exists('messages'):
+        return
+    for filename in os.listdir('messages'):
+        if filename.endswith('.txt'):
+            guild_id = int(filename.removesuffix('.txt'))
+            with open(state.get_file(guild_id), encoding="utf-8") as f:
+                text = f.read()
+                if text.strip(): # skip empty files cause otherwise bot will crash 
+                    state.text_models[guild_id] = markovify.Text(text)
 
-bot.run(bot_token, log_handler=handler)
+# start-up
+@bot.event
+async def on_ready():
+    print(f'We have logged in as {bot.user}')
+
+async def main():
+    async with bot:
+        await bot.load_extension('cogs.chaos')
+        await bot.start(bot_token) #type: ignore
+
+discord.utils.setup_logging(handler=handler)
+asyncio.run(main())

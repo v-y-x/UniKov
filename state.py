@@ -1,0 +1,49 @@
+import os
+
+# import this file the moment the bot starts at first
+# state.py is used for keeping memory safe so it is never reloaded through cog extensions
+# the memory will live through the cog reloads, but not through full bot restarts
+
+user_flags = {} # {user_id: ["planted": int, "set_by": [user_id, guild_id]]} --- memory for planted bomb flags
+text_models = {} # {guild_id: markovify.Text()} --- memory for markov models per server
+globalMsg = {} # {guild_id: message_count} --- memory for message counts per server
+
+last_reply_time = 0 # variable which has an assigned unix time when the bot is replied to
+REPLY_CD = 7.5 # constant for a reply cd
+
+# storage helpers 
+
+def get_file(guild_id): # get server where message was sent
+    os.makedirs('messages', exist_ok=True) # create folder in case it does not exist
+    return f"messages/{guild_id}.txt" # return the relevant .txt file
+
+def store_message(message, guild_id): # stores messages from chats to the relevant server
+    with open(get_file(guild_id), 'a', encoding='utf-8') as f:
+        f.write(f"{message}\n")
+    print(f"storing: {message[:50]} in {guild_id}.txt, current total: {globalMsg.get(guild_id, 0)}")
+
+def get_line_count(guild_id): # get the current global message count for each server, equal to the amount of lines in {guild_id}.txt
+    path = get_file(guild_id)
+    if not os.path.exists(path):
+        return 0
+    with open(path, encoding='utf-8') as f:
+        return sum(1 for _ in f)
+    
+def load_message_counts(): # scans the messages folder for each .txt file
+    counts = {}
+    if not os.path.exists("messages"):
+        return counts
+    for filename in os.listdir("messages"):
+        if filename.endswith('.txt'):
+            guild_id = int(filename.removesuffix('.txt'))
+            counts[guild_id] = get_line_count(guild_id)
+    return counts
+
+globalMsg = load_message_counts() # populates once at initial start-up
+
+async def get_chat_history(src, amount): # general function for searching chat history
+    messages = []
+    async for msg in src.channel.history(limit=amount):
+        if not msg.author.bot and msg.author.id != src.author.id: # filters out bots and person that triggered the command initially
+            messages.append(msg)
+    return messages
