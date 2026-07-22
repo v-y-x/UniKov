@@ -99,8 +99,8 @@ class Chaos(commands.Cog):
                 timeout_time = timeout_time * bombs_planted * (1 + (bombs_planted / 20)) # e.g. 60 * 2 * ( 1 + ( 2 / 20 )) = 132s 
                 await message.author.timeout(timedelta(seconds=timeout_time))
 
-                header = (f'{message.author.mention} had {bombs_planted} bombs go off!! 💥 they are timed out for {int(timeout_time / 60)}m. the bombs were planted by ')
-                mentions = ", ".join(f'<@{sid}>' for sid in setters) # gets all the IDs of the planters
+                header = f'{message.author.mention} had {bombs_planted} bombs go off!! 💥 they are timed out for {int(timeout_time / 60)}m. the bombs were planted by '
+                mentions = [f'<@{sid}>' for sid in setters] # gets all the IDs of the planters
 
                 chunk = header
                 for mention in mentions:
