@@ -96,10 +96,21 @@ class Chaos(commands.Cog):
             timeout_time = 60
 
             if bombs_planted > 1: 
-                setter_mentions = ", ".join(f'<@{sid}>' for sid in setters) # gets all the IDs of the planters
-                timeout_time = timeout_time * bombs_planted * (1 + (bombs_planted / 20))# e.g. 60 * 2 * ( 1 + ( 2 / 20 )) = 132s 
+                timeout_time = timeout_time * bombs_planted * (1 + (bombs_planted / 20)) # e.g. 60 * 2 * ( 1 + ( 2 / 20 )) = 132s 
                 await message.author.timeout(timedelta(seconds=timeout_time))
-                await message.channel.send(f'{message.author.mention} had {bombs_planted} bombs go off!! 💥 they are timed out for {int(timeout_time / 60)}m. the bombs were planted by {setter_mentions}')
+
+                header = (f'{message.author.mention} had {bombs_planted} bombs go off!! 💥 they are timed out for {int(timeout_time / 60)}m. the bombs were planted by ')
+                mentions = ", ".join(f'<@{sid}>' for sid in setters) # gets all the IDs of the planters
+
+                chunk = header
+                for mention in mentions:
+                    if len(chunk) + len(mention) + 2 > 2000:
+                        await message.channel.send(chunk)
+                        chunk = mention
+                    else:
+                        chunk += (', ' if chunk != header else '') + mention
+
+                await message.channel.send(chunk)
 
             else:
                 await message.author.timeout(timedelta(seconds=timeout_time))

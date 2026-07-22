@@ -146,6 +146,7 @@ async def rebuild():
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
+    rebuild.start()
 
 async def main():
     async with bot:
