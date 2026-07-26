@@ -25,7 +25,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix='&', intents=intents)
+bot = commands.Bot(command_prefix='%', intents=intents)
 
 # commands #
 
@@ -151,6 +151,7 @@ async def on_ready():
 async def main():
     async with bot:
         await bot.load_extension('cogs.chaos')
+        await bot.load_extension('cogs.econ')
         await bot.start(bot_token) #type: ignore
 
 discord.utils.setup_logging(handler=handler)

@@ -58,7 +58,7 @@ class Chaos(commands.Cog):
         if message.author.bot: # ignore if message is a bot
             return
 
-        if random.random() < 0.003: # .3% chance
+        if random.random() < 0.001: # .1% chance
             try:
                 roll = random.random()
                 if roll < .20: # 15% chance
@@ -88,6 +88,7 @@ class Chaos(commands.Cog):
         if state.user_flags.get(message.author.id, {}).get("planted", 0) > 0: # checks if they have the planted flag
             if not message.guild.me.guild_permissions.moderate_members:
                 await message.channel.send(f'{message.author.mention} would have been bombed, but i am lacking timeout permissions!')
+                del state.user_flags[message.author.id] # remove ID after execution
                 return
 
             bombs_planted = state.user_flags[message.author.id]["planted"]

@@ -1,4 +1,5 @@
 import os
+import sqlite3
 
 # import this file the moment the bot starts at first
 # state.py is used for keeping memory safe so it is never reloaded through cog extensions
@@ -47,3 +48,37 @@ async def get_chat_history(src, amount): # general function for searching chat h
         if not msg.author.bot and msg.author.id != src.author.id: # filters out bots and person that triggered the command initially
             messages.append(msg)
     return messages
+
+# SQLite database
+def init_db():
+    con = sqlite3.connect('economy.db')
+    con.execute(
+        """CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            balance INTEGER DEFAULT 0
+        )
+    """)
+    con.commit()
+    con.close()
+
+def get_balance(user_id):
+    con = sqlite3.connect('economy.db')
+    cursor = con.cursor()
+    cursor.execute(
+        "SELECT balance FROM users WHERE user_id = ?", (user_id,)
+    )
+    row = cursor.fetchone()
+    con.close()
+    return row[0] if row else 0
+
+def add_balance(user_id, amount):
+    con = sqlite3.connect('economy.db')
+    con.execute("""
+        INSERT INTO users (user_id, balance)
+        VALUES (?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET balance = balance + ?
+    """, (user_id, amount, amount))
+    con.commit()
+    con.close()
+
+init_db()
