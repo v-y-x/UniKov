@@ -8,7 +8,7 @@ import state
 # this allows the bot to reload the file independetly from the rest of the bot. essentially, a hot reload.
 
 current_msg = 0
-msg_goal = random.randint(2500, 7500)
+msg_goal = random.randint(10, 100)
 q = None
 EXPIRE_COUNT = 200
 msgs_since_question = 0
@@ -51,6 +51,9 @@ class Event(commands.Cog):
         if message.content.startswith(('&', '!', '.', '?')):
             return
 
+        if message.channel.id != 1523481530121453700:
+            return
+
         state.add_message_count(message.author.id)
 
         current_msg += 1
@@ -58,7 +61,7 @@ class Event(commands.Cog):
 
         if current_msg >= msg_goal:
             current_msg = 0
-            msg_goal = random.randint(2500, 7500)
+            msg_goal = random.randint(200, 500)
             print(f'new message goal: {msg_goal}')
             q = get_random_question()
             print(q)
@@ -81,7 +84,7 @@ class Event(commands.Cog):
                 return
             if message.content in ['A', 'B', 'C']:
                 if message.content == correctAnswer:
-                    coins = random.randint(100, 250)
+                    coins = random.randint(100, 500)
                     tokens = random.randint(1, 5)
                     state.add_balance(message.author.id, coins)
                     state.add_token(message.author.id, tokens)

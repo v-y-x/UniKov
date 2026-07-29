@@ -91,13 +91,13 @@ async def on_message(message):
             if bot.user and replied_to.author.id == bot.user.id: # is the reply directed towards the bot?
                 now = time.time()
                 if now - state.last_reply_time >= state.REPLY_CD: # checks whether the last replying message is more than REPLY_CD seconds ago
-                    sentence = model.make_short_sentence(80, tries=100) # 80 char limit
+                    sentence = model.make_short_sentence(120, tries=100) # 120 char limit
                     if sentence:
                         await message.reply(sentence)
                         state.last_reply_time = now
 
-        if random.random() < 0.01: # 1% chance
-            sentence = model.make_short_sentence(140, tries=100)
+        if random.random() < 0.02: # 2% chance
+            sentence = model.make_short_sentence(180, tries=100) # 180 character limit
             if sentence:
                 await message.channel.send(sentence)
     
