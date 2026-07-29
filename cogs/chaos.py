@@ -31,6 +31,7 @@ class Chaos(commands.Cog):
             try:
                 member = await commands.MemberConverter().convert(ctx, user)
             except commands.MemberNotFound:
+                ctx.command.reset_cooldown(ctx)
                 await ctx.send('couldn\'t find member, re-check ID or mention.')
                 return
     
@@ -51,6 +52,7 @@ class Chaos(commands.Cog):
         state.user_flags[member.id]["set_by"].append(ctx.author.id)
     
         await ctx.send(f'bomb planted on {member}. they currently have {state.user_flags[member.id]["planted"]} bomb(s)')
+        state.add_bomb_count(ctx.author.id)
         print(f'bomb planted on {member} by {ctx.author}.')
 
     @commands.Cog.listener()
