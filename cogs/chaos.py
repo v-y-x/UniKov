@@ -31,6 +31,7 @@ class Chaos(commands.Cog):
             try:
                 member = await commands.MemberConverter().convert(ctx, user)
             except commands.MemberNotFound:
+                ctx.command.reset_cooldown(ctx)
                 await ctx.send('couldn\'t find member, re-check ID or mention.')
                 return
     
@@ -118,6 +119,7 @@ class Chaos(commands.Cog):
                 await message.channel.send(f'{message.author.mention} has been bombed! 💥 they are timed out for 1m. the bomb was planted by <@{setters[0]}>')
 
             del state.user_flags[message.author.id] # remove ID after execution
+            state.add_bomb_count(message.author.id)
 
 async def setup(bot): # required for discord.py to reach the cog when running reload commands
     await bot.add_cog(Chaos(bot))
