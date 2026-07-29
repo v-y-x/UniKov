@@ -1,6 +1,7 @@
 import os
 import discord
 from discord.ext import commands
+from discord.ext.commands import has_permissions
 from discord.ext import tasks
 import markovify
 import random
@@ -24,12 +25,12 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix='&', intents=intents)
+bot = commands.Bot(command_prefix='%', intents=intents)
 
 # commands #
 
 @bot.command()
-@commands.has_permissions(administrator=True) # prevent from executing unless the user has admin 
+@has_permissions(administrator=True) # prevent from executing unless the user has admin 
 async def scrape(ctx, amount : int = 1000):
     """ [number] | Reads the chat history of the current channel"""
 
@@ -69,9 +70,10 @@ async def hello(ctx): # hello!
     """Hello!"""
     await ctx.channel.send('Hello!')
 
-@bot.command(hidden=True)
+@bot.command()
 @commands.is_owner()
 async def reload(ctx, extension: str):
+    """Hot-reloads a cog extension. Only executable by bot owner."""
     try:
         await bot.reload_extension(f'cogs.{extension}')
         await ctx.send(f'reloaded {extension}!')
@@ -134,7 +136,7 @@ async def rebuild():
         return
     for filename in os.listdir('messages'):
         if filename.endswith('.txt'):
-            guild_id = int(filename[:-4])
+            guild_id = int(filename.removesuffix('.txt'))
             with open(state.get_file(guild_id), encoding="utf-8") as f:
                 text = f.read()
                 if text.strip(): # skip empty files cause otherwise bot will crash 
@@ -150,7 +152,6 @@ async def main():
     async with bot:
         await bot.load_extension('cogs.chaos')
         await bot.load_extension('cogs.econ')
-        await bot.load_extension('cogs.event')
         await bot.start(bot_token) #type: ignore
 
 discord.utils.setup_logging(handler=handler)

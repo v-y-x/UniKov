@@ -19,11 +19,7 @@ class Econ(commands.Cog):
     async def balance(self, ctx):
         """Check your current balance"""
         bal = state.get_balance(ctx.author.id)
-        coins, tokens = bal
-        if tokens > 0:
-            await ctx.channel.send(f'you currently have {coins} gimmickoins, along with {tokens} university tokens')
-            return
-        await ctx.channel.send(f'you currently have {coins} gimmickoins')
+        await ctx.channel.send(f'you currently have {bal} gimmickoins')
 
     @commands.Cog.listener()
     async def on_message(self, message):
