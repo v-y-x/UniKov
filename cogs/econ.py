@@ -15,15 +15,26 @@ class Econ(commands.Cog):
         self.bot = bot
 
     @commands.command()
+    @commands.has_permissions(administrator=True)
+    @commands.cooldown(1, 5, commands.BucketType.member) # 5 seconds, per-user per-server cooldown
+    async def addCoins(self, ctx, user: str, amount: int):
+        """[user/id/mention] [amount] | Grant coins to a user. Admin only."""
+        try:
+            member = await commands.MemberConverter().convert(ctx, user)
+        except commands.MemberNotFound:
+            await ctx.send('couldn\'t find member, re-check ID or mention.')
+            return
+
+        state.add_balance(member.id, amount)
+        await ctx.send(f'gave {amount} coins to {member.mention}!')
+
+    @commands.command()
     @commands.cooldown(1, 5, commands.BucketType.member) # 5 seconds, per-user per-server cooldown
     async def balance(self, ctx):
         """Check your current balance"""
         bal = state.get_balance(ctx.author.id)
-        coins, tokens = bal
-        if tokens > 0:
-            await ctx.channel.send(f'you currently have {coins} gimmickoins, along with {tokens} university tokens')
-            return
-        await ctx.channel.send(f'you currently have {coins} gimmickoins')
+        coins = bal
+        await ctx.channel.send(f'you currently have {coins} coins')
 
     @commands.Cog.listener()
     async def on_message(self, message):

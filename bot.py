@@ -1,5 +1,6 @@
 import os
 import discord
+import sqlite3
 from discord.ext import commands
 from discord.ext import tasks
 import markovify
@@ -7,6 +8,7 @@ import random
 import logging
 import random
 import time
+import json
 from datetime import timedelta
 from dotenv import load_dotenv
 import asyncio
@@ -25,6 +27,16 @@ intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix='&', intents=intents)
+
+def load_items():
+    with open('data/shop_items.json', encoding='utf-8') as f:
+        return json.load(f)
+
+shop_items = load_items()
+
+def find_item_by_name(name):
+    name = name.lower()
+    return next((i for i in shop_items if i['name'].lower() == name), None)
 
 # commands #
 
@@ -91,13 +103,13 @@ async def on_message(message):
             if bot.user and replied_to.author.id == bot.user.id: # is the reply directed towards the bot?
                 now = time.time()
                 if now - state.last_reply_time >= state.REPLY_CD: # checks whether the last replying message is more than REPLY_CD seconds ago
-                    sentence = model.make_short_sentence(120, tries=100) # 120 char limit
+                    sentence = model.make_short_sentence(160, tries=500) # 120 char limit
                     if sentence:
                         await message.reply(sentence)
                         state.last_reply_time = now
 
         if random.random() < 0.02: # 2% chance
-            sentence = model.make_short_sentence(180, tries=100) # 180 character limit
+            sentence = model.make_short_sentence(220, tries=500) # 180 character limit
             if sentence:
                 await message.channel.send(sentence)
     
@@ -107,6 +119,18 @@ async def on_message(message):
             state.globalMsg[message.guild.id] = state.globalMsg.get(message.guild.id, 0) + 1 # add to message count for this server
 
     await bot.process_commands(message)
+
+# @bot.command()
+# async def use(ctx, item_name: str, target: discord.Member = None): #type: ignore
+#     item = find_item_by_name(item_name)
+
+#     source = 0 # source coming from discord
+#     result = state.use_item(ctx.author.id, item['id'], shop_items, source, target.id)
+
+#     if result.get("success"):
+#         await ctx.send(result.get("message"))
+#     else:
+#         await ctx.send(f"unable to use item: {result.get("error")}")
 
 # command errors #
 
@@ -140,17 +164,43 @@ async def rebuild():
                 if text.strip(): # skip empty files cause otherwise bot will crash 
                     state.text_models[guild_id] = markovify.Text(text)
 
+@tasks.loop(minutes=10)
+async def expired_roles_check():
+    now = int(time.time())
+    con = sqlite3.connect('database.db')
+    cursor = con.execute("SELECT user_id, role_id FROM temp_roles WHERE expires_at <= ?", (now, ))
+    expired = cursor.fetchall()
+
+    guild = bot.get_guild(state.GUILD_ID)
+    for user_id, role_id in expired:
+        member = guild.get_member(user_id) # type: ignore
+        role = guild.get_role(role_id)  # type: ignore
+        if member and role:
+            try:
+                await member.remove_roles(role)
+                print(f'removed {role} role from {member}')
+            except discord.Forbidden:
+                print(f"couldn't remove role from {member}, missing permissions?")
+        else:
+            print(f'role and/or member turned out as None: {role} | {member}') 
+
+        con.execute("DELETE FROM temp_roles WHERE user_id = ? AND role_id = ?", (user_id, role_id))
+
+    con.commit()
+    con.close()
+        
 # start-up
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
     rebuild.start()
+    expired_roles_check.start()
 
 async def main():
     async with bot:
         await bot.load_extension('cogs.chaos')
         await bot.load_extension('cogs.econ')
-        await bot.load_extension('cogs.event')
+        # await bot.load_extension('cogs.event')
         await bot.start(bot_token) #type: ignore
 
 discord.utils.setup_logging(handler=handler)

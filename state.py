@@ -1,5 +1,14 @@
 import os
 import sqlite3
+import requests
+import time
+import discord
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_KEY")
+GUILD_ID = 1524157111850766356
 
 # import this file the moment the bot starts at first
 # state.py is used for keeping memory safe so it is never reloaded through cog extensions
@@ -66,8 +75,55 @@ def init_db():
             uni_tokens INTEGER DEFAULT 0
         )
     """)
+    con.execute(
+        """CREATE TABLE IF NOT EXISTS inventory (
+        user_id INTEGER,
+        item_id INTEGER,
+        quantity INTEGER DEFAULT 0,
+        PRIMARY KEY (user_id, item_id)
+        )
+    """)
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS temp_roles (
+        user_id INTEGER,
+        role_id INTEGER,
+        expires_at INTEGER,
+        PRIMARY KEY (user_id, role_id)
+        )
+    """)
     con.commit()
     con.close()
+
+# reusable commands
+
+def add_item(user_id, item_id, quantity=1):
+    con = sqlite3.connect('database.db')
+    con.execute("""
+        INSERT INTO inventory (user_id, item_id, quantity)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + 1
+    """, (user_id, item_id, quantity))
+    con.commit()
+    con.close()
+    
+def remove_item(user_id, item_id):
+    con = sqlite3.connect('database.db')
+    con.execute("""
+        UPDATE inventory SET quantity = quantity - 1
+        WHERE user_id = ? AND item_id = ?
+    """, (user_id, item_id))
+    con.execute('DELETE FROM inventory WHERE quantity <= 0')
+    con.commit()
+    con.close()
+
+def get_inventory(user_id):
+    con = sqlite3.connect('database.db')
+    cur = con.cursor()
+    cur.execute("SELECT item_id, quantity FROM inventory WHERE user_id = ?", (user_id,))
+    rows = cur.fetchall()
+    con.close()
+    return rows
 
 def get_balance(user_id):
     con = sqlite3.connect('database.db')
@@ -76,12 +132,12 @@ def get_balance(user_id):
         "SELECT balance FROM users WHERE user_id = ?", (user_id,)
     )
     row = cursor.fetchone()
-    cursor.execute(
-        "SELECT uni_tokens FROM uniEvent WHERE user_id = ?", (user_id,)
-    )
-    token_row = cursor.fetchone()
+    # cursor.execute(
+    #     "SELECT uni_tokens FROM uniEvent WHERE user_id = ?", (user_id,)
+    # )
+    # token_row = cursor.fetchone()
     con.close()
-    return row[0] if row else 0, token_row[0] if token_row else 0 
+    return row[0] if row else 0 
 
 def add_balance(user_id, amount):
     con = sqlite3.connect('database.db')
@@ -124,5 +180,63 @@ def add_bomb_count(user_id):
     )
     con.commit()
     con.close()
+
+def use_item(user_id, item_id, shop_items, source, target_id = None):
+    owned = dict(get_inventory(user_id)) # {item_id: quantity}
+
+    item = next((i for i in shop_items if i['id'] == item_id), None)
+    if not item:
+        return {"success": False, "error": "this item does not exist."}
+
+    if item.get('discord_only') and source == 1:
+        return {"success": False, "error": "use this item in discord!"}
+
+    if item.get('requires_target') and target_id is None:
+        return {"success": False, "error": "you need to mention someone or give a user ID."}
+
+    if owned.get(item_id, 0) <= 0:
+        return {"success": False, "error": "you do not own this item!"}
+
+    effect = item.get('effect')
+    if effect == 'plant_bomb':
+        if target_id not in user_flags:
+            user_flags[target_id] = {"planted": 0, "set_by": []}
+        user_flags[target_id]["planted"] += 1
+        user_flags[target_id]["set_by"].append(user_id)
+        message = f"bomb planted on <@{target_id}>! they currently have {user_flags[target_id]['planted']} bomb(s)."
+        print(user_flags)
+    elif effect == 'coin_boost':
+        add_balance(user_id, item['effect_value'])
+        message = f"gained {item['effect_value']} coins!"
+    elif effect == 'add_role':
+        role_id = item.get('role_id')
+        url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{user_id}/roles/{role_id}"
+        headers = {
+            "Authorization": f"Bot {BOT_TOKEN}"
+        }
+
+        response = requests.put(url, headers=headers)
+
+        if response.status_code == 204:
+            message = "role applied!"
+        else:
+            return {"success": False, "error": f"discord API error: {response.status_code}"}
+
+        if item.get('duration'):
+            expires_at = int(time.time()) + item.get('duration')
+            con = sqlite3.connect('database.db')
+            con.execute("""
+                INSERT INTO temp_roles (user_id, role_id, expires_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT (user_id, role_id) DO UPDATE SET expires_at = ?
+                """, (user_id, role_id, expires_at, expires_at)
+            )
+            con.commit()
+            con.close()
+    else:
+        return {"success": False, "error": f"item did not have an effect (sorry!)"}
+
+    remove_item(user_id, item_id)
+    return {"success": True, "message": message}
 
 init_db()
