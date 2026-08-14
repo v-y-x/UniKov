@@ -2,7 +2,7 @@ const tab = document.querySelector('.main')
 let shopItems = []
 
 async function loadShopItmes() {
-    const response = await fetch('/data/shop_items.json');
+    const response = await fetch('/api/items', {credentials: "include"});
     shopItems = await response.json();
 
     container = document.querySelector('.shop-items')
