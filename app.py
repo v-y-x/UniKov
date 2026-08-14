@@ -132,7 +132,7 @@ def use_item():
     result = asyncio.run(state.use_item(user_id, item_id, shop_items, source))
     return jsonify(result)
 
-@app.route('api/items')
+@app.route('/api/items')
 def get_items():
     return jsonify(shop_items)
 
