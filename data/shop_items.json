@@ -1,0 +1,32 @@
+[
+    {
+        "id": "bomb_shield",
+        "name": "Anti-Bomb Shield",
+        "image": "/resources/images/shield.png",
+        "description": "prevent a user from planting bombs on you for 24 hours!",
+        "effect": "add_role",
+        "role_id": 1536715865222025306,
+        "duration": 864000,
+        "price": 3000
+    },
+    {
+        "id": "bomb",
+        "name": "Bomb",
+        "image": "/resources/images/bomb.png",
+        "description": "have an extra bomb at your expense to throw at someone!",
+        "effect": "plant_bomb",
+        "requires_target": true,
+        "discord_only": true,
+        "price": 2000    
+    },
+    {
+        "id": "nuke",
+        "name": "Nuke",
+        "image": "/resources/images/nuke.png",
+        "description": "do you just want to inconvenience everyone in chat? now you can with a specialized nuke that will time out 5 people immediately!",
+        "effect": "nuke_chat",
+        "requires_target": false,
+        "discord_only": true,
+        "price": 10000
+    }
+]

@@ -5,7 +5,7 @@ import time
 import state
 
 last_earn_time = {}
-EARN_CD = 3
+EARN_CD = 10
 
 # chaos.py cog. a class file that groups commands together into one file.
 # this allows the bot to reload the file independetly from the rest of the bot. essentially, a hot reload.

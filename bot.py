@@ -120,24 +120,28 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# @bot.command()
-# async def use(ctx, item_name: str, target: discord.Member = None): #type: ignore
-#     item = find_item_by_name(item_name)
+@bot.command()
+async def use(ctx, item_name: str, target: discord.Member = None): #type: ignore
+    item = find_item_by_name(item_name)
 
-#     source = 0 # source coming from discord
-#     result = state.use_item(ctx.author.id, item['id'], shop_items, source, target.id)
+    source = 0 # source coming from discord
+    result = await state.use_item(ctx.author.id, item['id'], shop_items, source, target, ctx) #type: ignore
 
-#     if result.get("success"):
-#         await ctx.send(result.get("message"))
-#     else:
-#         await ctx.send(f"unable to use item: {result.get("error")}")
+    if result.get("success"):
+        await ctx.send(result.get("message"))
+    else:
+        await ctx.send(f"unable to use item: {result.get("error")}")
 
 # command errors #
 
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
-        await ctx.send(f"command on cooldown! try in {error.retry_after:.1f}s")
+        cd = error.retry_after
+        if cd >= 60:
+            await ctx.send(f"command on cooldown! try in {cd / 60:.1f}m")
+        else:
+            await ctx.send(f"command on cooldown! try in {cd:.1f}s")
     elif isinstance(error, commands.MemberNotFound):
         await ctx.send('couldn\'t find that member, recheck the ID or mention')
         ctx.command.reset_cooldown(ctx)
@@ -200,7 +204,7 @@ async def main():
     async with bot:
         await bot.load_extension('cogs.chaos')
         await bot.load_extension('cogs.econ')
-        # await bot.load_extension('cogs.event')
+        await bot.load_extension('cogs.fun')
         await bot.start(bot_token) #type: ignore
 
 discord.utils.setup_logging(handler=handler)

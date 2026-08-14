@@ -119,7 +119,6 @@ class Chaos(commands.Cog):
                 await message.channel.send(f'{message.author.mention} has been bombed! 💥 they are timed out for 1m. the bomb was planted by <@{setters[0]}>')
 
             del state.user_flags[message.author.id] # remove ID after execution
-            state.add_bomb_count(message.author.id)
 
 async def setup(bot): # required for discord.py to reach the cog when running reload commands
     await bot.add_cog(Chaos(bot))

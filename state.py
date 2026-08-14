@@ -2,6 +2,7 @@ import os
 import sqlite3
 import requests
 import time
+import datetime as dt
 import discord
 from dotenv import load_dotenv
 
@@ -68,14 +69,6 @@ def init_db():
         )
     """)
     con.execute(
-        """CREATE TABLE IF NOT EXISTS uniEvent (
-            user_id INTEGER PRIMARY KEY,
-            message_count INTEGER DEFAULT 0,
-            bomb_count INTEGER DEFAULT 0,
-            uni_tokens INTEGER DEFAULT 0
-        )
-    """)
-    con.execute(
         """CREATE TABLE IF NOT EXISTS inventory (
         user_id INTEGER,
         item_id INTEGER,
@@ -132,10 +125,6 @@ def get_balance(user_id):
         "SELECT balance FROM users WHERE user_id = ?", (user_id,)
     )
     row = cursor.fetchone()
-    # cursor.execute(
-    #     "SELECT uni_tokens FROM uniEvent WHERE user_id = ?", (user_id,)
-    # )
-    # token_row = cursor.fetchone()
     con.close()
     return row[0] if row else 0 
 
@@ -149,39 +138,7 @@ def add_balance(user_id, amount):
     con.commit()
     con.close()
 
-def add_token(user_id, amount):
-    con = sqlite3.connect('database.db')
-    con.execute("""
-        INSERT INTO uniEvent (user_id, uni_tokens)
-        VALUES (?, ?)
-        ON CONFLICT(user_id) DO UPDATE SET uni_tokens = uni_tokens + ?
-    """, (user_id, amount, amount))
-    con.commit()
-    con.close()
-
-def add_message_count(user_id):
-    con = sqlite3.connect('database.db')
-    con.execute("""
-        INSERT INTO uniEvent (user_id, message_count)
-        VALUES (?, 1)
-        ON CONFLICT(user_id) DO UPDATE SET message_count = message_count + 1
-    """, (user_id, )
-    )
-    con.commit()
-    con.close()
-
-def add_bomb_count(user_id):
-    con = sqlite3.connect('database.db')
-    con.execute("""
-        INSERT INTO uniEvent (user_id, bomb_count_count)
-        VALUES (?, 1)
-        ON CONFLICT(user_id) DO UPDATE SET bomb_count = bomb_count + 1
-    """, (user_id, )
-    )
-    con.commit()
-    con.close()
-
-def use_item(user_id, item_id, shop_items, source, target_id = None):
+async def use_item(user_id, item_id, shop_items, source, target_id = None, src = None):
     owned = dict(get_inventory(user_id)) # {item_id: quantity}
 
     item = next((i for i in shop_items if i['id'] == item_id), None)
@@ -200,11 +157,22 @@ def use_item(user_id, item_id, shop_items, source, target_id = None):
     effect = item.get('effect')
     if effect == 'plant_bomb':
         if target_id not in user_flags:
-            user_flags[target_id] = {"planted": 0, "set_by": []}
-        user_flags[target_id]["planted"] += 1
-        user_flags[target_id]["set_by"].append(user_id)
-        message = f"bomb planted on <@{target_id}>! they currently have {user_flags[target_id]['planted']} bomb(s)."
-        print(user_flags)
+            user_flags[target_id.id] = {"planted": 0, "set_by": []} #type: ignore
+        user_flags[target_id.id]["planted"] += 1 #type: ignore
+        user_flags[target_id.id]["set_by"].append(user_id) #type: ignore
+        message = f"bomb planted on <@{target_id}>! they currently have {user_flags[target_id.id]['planted']} bomb(s)." #type: ignore
+    elif effect == 'nuke_chat':
+        targets = await get_chat_history(src, 5)
+        for id in targets:
+            url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{id.author.id}"
+            headers = {
+                "Authorization": f"Bot {BOT_TOKEN}",
+                "Content-Type": "application/json"
+            }
+            until = (dt.datetime.utcnow() + dt.timedelta(minutes=1)).isoformat() + 'Z'
+            response = requests.patch(url, headers=headers, json={"communication_disabled_until": until})
+            print(response.status_code)
+        message = f"a nuke has been set off by <@{user_id}>!"
     elif effect == 'coin_boost':
         add_balance(user_id, item['effect_value'])
         message = f"gained {item['effect_value']} coins!"

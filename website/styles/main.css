@@ -1,0 +1,75 @@
+html {
+    user-select: none;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+body {
+    background-color: cadetblue;
+    display: flex;
+    justify-content: center;
+}
+
+.main {
+    margin: 16px;
+    min-height: 95vh;
+    width: 97vw;
+}
+
+.account {
+    position: absolute;
+    top: 80px;
+    left: 1550px;
+}
+
+.account-body {
+    display: flex;
+    flex-direction: row;
+    width: 250px;
+    gap: 32px;
+    justify-content: center;
+
+}
+
+#loginButton {
+    width: 96px;
+    height: 32px;
+    font-size: 1.3em;
+}
+
+.account-body div {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+    font-size: 2em;
+}
+
+.account img {
+    width: 64px;
+}
+
+@font-face {
+    font-family: "Pixelated MS Sans Serif";
+    src: url(/resources/W95FA.otf);
+}
+
+.ver-divider {
+    background: none;
+    border-left: 1px solid #808080;
+    border-right: 1px solid #ffffff;
+    height: 150%;
+    width: 1px;
+}
+
+.divider {
+    background: none;
+    border-top: 1px solid #808080;
+    border-bottom: 1px solid #ffffff;
+    margin: 2px 0;
+    width: 100%;
+    height: 1px;
+}
