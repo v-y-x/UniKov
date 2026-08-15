@@ -68,16 +68,9 @@ function viewItem(itemID) {
         bar.addEventListener("mousedown", startDrag);
     })
 
-    document.querySelectorAll(".window").forEach(win => {
-        win.addEventListener("mousedown", () => {
-            win.style.zIndex = ++topZ;
-        })
+    window.addEventListener("mousedown", () => {
+        window.style.zIndex = ++topZ;
     })
-}
-
-function closeItem(winID) {
-    const window = document.getElementById(winID)
-    if (window) window.remove()
 }
 
 async function useItem(itemID) {

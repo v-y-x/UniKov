@@ -52,9 +52,65 @@ body {
     width: 64px;
 }
 
+.alert-window {
+    position: absolute;
+    top: 500px;
+    left: auto;
+    max-width: 520px;
+    max-height: 220px;
+}
+
+.alert-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.alert-body img {
+    height: 48px;
+    padding: 16px;
+    padding-right: 0;
+}
+
+#alert-content {
+    gap: 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.alert-body #text {
+    font-size: 1.4em;
+    padding: 12px;
+}
+
+#acc-login-but {
+    justify-content: center;
+    gap: 64px;
+    display: flex;
+    flex-direction: row;
+}
+
+#acc-login-but button {
+    height: 32px;
+    width: 92px;
+    font-size: 1.3em;
+}
+
+#credits {
+    font-size: 3em;
+}
+
+#credits a {
+    color: blue;
+    text-decoration: underline;
+}
+
 @font-face {
     font-family: "Pixelated MS Sans Serif";
-    src: url(/resources/W95FA.otf);
+    src: url(/website/resources/W95FA.otf);
 }
 
 .ver-divider {

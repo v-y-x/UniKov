@@ -2,7 +2,7 @@ const tab = document.querySelector('.main')
 let shopItems = []
 
 async function loadShopItmes() {
-    const response = await fetch('/api/items', {credentials: "include"});
+    const response = await fetch('/data/shop_items.json', {credentials: "include"});
     shopItems = await response.json();
 
     container = document.querySelector('.shop-items')
@@ -68,16 +68,9 @@ function viewItem(itemID) {
         bar.addEventListener("mousedown", startDrag);
     })
 
-    document.querySelectorAll(".window").forEach(win => {
-        win.addEventListener("mousedown", () => {
-            win.style.zIndex = ++topZ;
-        })
+    window.addEventListener("mousedown", () => {
+        window.style.zIndex = ++topZ;
     })
-}
-
-function closeItem(winID) {
-    const window = document.getElementById(winID)
-    if (window) window.remove()
 }
 
 async function buyItem(itemId) {
@@ -91,9 +84,12 @@ async function buyItem(itemId) {
     const result = await response.json();
 
     if (result.success) {
-        alert(`success! your new balance is ${result.new_balance}`)
+        let message = `success! your new balance is ${result.new_balance}` 
+        successWindow(message)
+        loadAccountInfo()
     } else {
-        alert(result.error)
+        let message = `error: ${result.error}` 
+        errorWindow(message)
     }
 
     loadAccountInfo()
