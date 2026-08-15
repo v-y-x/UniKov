@@ -110,7 +110,7 @@ body {
 
 @font-face {
     font-family: "Pixelated MS Sans Serif";
-    src: url(/website/resources/W95FA.otf);
+    src: url(/resources/W95FA.otf);
 }
 
 .ver-divider {

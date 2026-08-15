@@ -84,9 +84,11 @@ async function useItem(itemID) {
     const result = await response.json()
 
     if (result.success) {
-        alert('item has been used!')
+	let message = "item has been used!"
+        successWindow(message)
         loadInventory()
     } else {
-        alert(result.error)
+	let message = result.error
+        errorWindow(message)
     }
 }

@@ -130,7 +130,7 @@ async def use(ctx, item_name: str, target: discord.Member = None): #type: ignore
     if result.get("success"):
         await ctx.send(result.get("message"))
     else:
-        await ctx.send(f"unable to use item: {result.get("error")}")
+        await ctx.send(f"unable to use item: {result.get('error')}")
 
 # command errors #
 

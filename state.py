@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_KEY")
-GUILD_ID = 1524157111850766356
+GUILD_ID = 1381807209092223006
 
 # import this file the moment the bot starts at first
 # state.py is used for keeping memory safe so it is never reloaded through cog extensions
