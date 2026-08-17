@@ -103,13 +103,13 @@ async def on_message(message):
             if bot.user and replied_to.author.id == bot.user.id: # is the reply directed towards the bot?
                 now = time.time()
                 if now - state.last_reply_time >= state.REPLY_CD: # checks whether the last replying message is more than REPLY_CD seconds ago
-                    sentence = model.make_short_sentence(160, tries=500) # 120 char limit
+                    sentence = model.make_short_sentence(150, tries=500) # 120 char limit
                     if sentence:
                         await message.reply(sentence)
                         state.last_reply_time = now
 
-        if random.random() < 0.02: # 2% chance
-            sentence = model.make_short_sentence(220, tries=500) # 180 character limit
+        if random.random() < 0.01: # 1% chance
+            sentence = model.make_short_sentence(180, tries=100) # 180 character limit
             if sentence:
                 await message.channel.send(sentence)
     
@@ -165,8 +165,13 @@ async def rebuild():
             guild_id = int(filename[:-4])
             with open(state.get_file(guild_id), encoding="utf-8") as f:
                 text = f.read()
-                if text.strip(): # skip empty files cause otherwise bot will crash 
+                if not text.strip():
+                    continue # skip empty files cause otherwise bot will crash 
+                try:
                     state.text_models[guild_id] = markovify.Text(text)
+                except KeyError:
+                    print(f'unable to build model for {guild_id} - likely not enough data\nLOG: {KeyError}')
+                    continue
 
 @tasks.loop(minutes=10)
 async def expired_roles_check():

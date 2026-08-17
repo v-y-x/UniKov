@@ -1,3 +1,11 @@
+const ding = new Audio('scripts/sfx/ding.mp3');
+const chimes = new Audio('scripts/sfx/chimes.mp3');
+const chord = new Audio('scripts/sfx/chord.mp3');
+
+ding.volume = .3
+chimes.volume = .3
+chord.volume = .3
+
 document.querySelectorAll(".title-bar").forEach(bar => {
     bar.addEventListener("mousedown", startDrag);
 })
@@ -59,7 +67,6 @@ let alertNum = 0
 function createWindow(){
     const window = document.createElement('div')
     window.className = 'window alert-window'
-    window.style.zIndex = 99
     alertNum++
     
     return window
@@ -86,7 +93,8 @@ function cookieWindow() {
     `
         
     document.querySelector('body').appendChild(cookieWin)
-    
+    ding.play()
+
     document.querySelectorAll(".title-bar").forEach(bar => {
         bar.addEventListener("mousedown", startDrag);
     })
@@ -116,7 +124,8 @@ function successWindow(message) {
     `
         
     document.querySelector('body').appendChild(successWin)
-    
+    chimes.play()
+
     document.querySelectorAll(".title-bar").forEach(bar => {
         bar.addEventListener("mousedown", startDrag);
     })
@@ -145,7 +154,8 @@ function errorWindow(message) {
     </div>
     `        
     document.querySelector('body').appendChild(errorWin)
-    
+    chord.play()
+
     document.querySelectorAll(".title-bar").forEach(bar => {
         bar.addEventListener("mousedown", startDrag);
     })
