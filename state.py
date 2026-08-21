@@ -138,6 +138,13 @@ def add_balance(user_id, amount):
     con.commit()
     con.close()
 
+heads = [] # {'user_id': int, 'amount': int}
+tails = [] # {'user_id': int, 'amount': int}
+
+# item functions
+
+rocketActive = 0
+
 async def use_item(user_id, item_id, shop_items, source, target_id = None, src = None):
     owned = dict(get_inventory(user_id)) # {item_id: quantity}
 
@@ -176,6 +183,10 @@ async def use_item(user_id, item_id, shop_items, source, target_id = None, src =
     elif effect == 'coin_boost':
         add_balance(user_id, item['effect_value'])
         message = f"gained {item['effect_value']} coins!"
+    elif effect == 'rocket_launcher':
+        global rocketActive
+        rocketActive += 3
+        message = f"rocket launcher activated!"
     elif effect == 'add_role':
         role_id = item.get('role_id')
         url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{user_id}/roles/{role_id}"

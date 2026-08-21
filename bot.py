@@ -64,11 +64,11 @@ async def scrape(ctx, amount : int = 1000):
     
     await progMsg.edit(content=f"{msgCount} messages scraped! current total: {state.globalMsg.get(ctx.guild.id, 0)}")
     
-@bot.command()
-async def token(ctx): # i don't even know why i made this
-    """Shows the bot token"""
-    await ctx.send(f"OPSEC LEVEL: SIGMA DEMON. NO TOKEN FOR U BLUD")
-    await ctx.author.timeout(timedelta(minutes=1)) 
+# @bot.command()
+# async def token(ctx): # i don't even know why i made this
+#     """Shows the bot token"""
+#     await ctx.send(f"OPSEC LEVEL: SIGMA DEMON. NO TOKEN FOR U BLUD")
+#     await ctx.author.timeout(timedelta(minutes=1)) 
 
 @bot.command()
 async def total(ctx):
@@ -122,6 +122,7 @@ async def on_message(message):
 
 @bot.command()
 async def use(ctx, item_name: str, target: discord.Member = None): #type: ignore
+    """[item] | Use an item"""
     item = find_item_by_name(item_name)
 
     source = 0 # source coming from discord
@@ -131,6 +132,12 @@ async def use(ctx, item_name: str, target: discord.Member = None): #type: ignore
         await ctx.send(result.get("message"))
     else:
         await ctx.send(f"unable to use item: {result.get('error')}")
+
+bot.command()
+async def inventory(ctx):
+    """Check your inventory"""
+    inventory = state.get_inventory(ctx.author.id)
+    await ctx.send(inventory)
 
 # command errors #
 
@@ -197,6 +204,37 @@ async def expired_roles_check():
 
     con.commit()
     con.close()
+
+@tasks.loop(minutes=1800)
+async def coinflip():
+    if not state.heads and not state.tails:
+        print('nobody bet on current coinflip')
+        return # nobody bet on coinflip
+
+    result = random.choice(['heads', 'tails'])
+    winners = state.heads if result == 'heads' else state.tails
+    losers = state.tails if result == 'heads' else state.heads
+
+    channel_id = bot.get_channel(1536364675636269076)
+
+    total_winners_pot = sum(p['amount'] for p in winners)
+    total_losers_pot = sum(p['amount'] for p in losers)
+
+    if not winners:
+        await channel_id.send(f"the coin landed on **{result}**. no one won!") #type: ignore
+    else:
+        for winner in winners:
+            user_id = winner['user_id']
+            payout = winner['amount'] * 2
+            state.add_balance(user_id, payout)
+        
+        await channel_id.send(f"the coin landed on **{result}**. {len(winners)} winners got double their bet, for a total of {total_winners_pot * 2} coins!") #type: ignore
+        if losers:
+            await channel_id.send(f"the opposing side had {len(losers)} losers, totaling up to a loss of {total_losers_pot} coins!") #type: ignore
+
+    print(f'{result} won, awarded {len(winners)} users.')
+    state.heads.clear()
+    state.tails.clear()
         
 # start-up
 @bot.event
@@ -204,6 +242,7 @@ async def on_ready():
     print(f'We have logged in as {bot.user}')
     rebuild.start()
     expired_roles_check.start()
+    coinflip.start()
 
 async def main():
     async with bot:

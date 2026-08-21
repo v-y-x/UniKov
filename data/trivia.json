@@ -50,6 +50,21 @@
         "correct": "C"
     },
     {
+        "question": "What is the most sold game ever?",
+        "answers": ["Tetris", "Overwatch", "GTA V"],
+        "correct": "A"
+    },
+    {
+        "question": "What did Uni say that one time?",
+        "answers": ["I don't like minors.", "Age doesn't matter.", "I fucking hate faggots."],
+        "correct": "B"
+    },
+    {
+        "question": "GTA 6",
+        "answers": ["Wgat it is", "Howg it is", "Wgere it is"],
+        "correct": "A"
+    },
+    {
         "question": "How many times has DoItNoBalls been banned?",
         "answers": ["Four", "Six", "Twelve"],
         "correct": "B"

@@ -20,12 +20,20 @@
         "price": 2000    
     },
     {
+        "id": "rocket",
+        "name": "Rocket Launcher",
+        "image": "resources/images/rocket.png",
+        "description": "once activated, this item that will target the next 3 people mentioned in chat, timing them out for 3 minutes. this also includes if they were mentioned by other people!\npro tip: these things stack",
+        "effect": "rocket_launcher",
+        "discord_only": true,
+        "price": 7500
+    },
+    {
         "id": "nuke",
         "name": "Nuke",
         "image": "resources/images/nuke.png",
         "description": "do you just want to inconvenience everyone in chat? now you can with a specialized nuke that will time out 5 people immediately!",
         "effect": "nuke_chat",
-        "requires_target": false,
         "discord_only": true,
         "price": 10000
     }

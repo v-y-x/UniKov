@@ -4,8 +4,7 @@ import json
 
 import state
 
-# event.py cog. temporary cog file for the university event
-# this allows the bot to reload the file independetly from the rest of the bot. essentially, a hot reload.
+# fun.py cog. cog file for silly and fun commands
 
 q = None
 original_user = None
@@ -23,9 +22,51 @@ class Fun(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    @commands.cooldown(1, 86400, commands.BucketType.user) # 24h cooldown, per-user cooldown
+    async def betCoinflip(self, ctx, bet: str, amount: int):
+        """[heads/tails] [amount] | Bet on a random coinflip!"""
+        check_list = []
+
+        for p in state.heads:
+            check_list.append(p['user_id'])
+        for p in state.tails:
+            check_list.append(p['user_id'])
+
+        if ctx.author.id in check_list:
+            await ctx.send('you already bet on the current coinflip, no going back now!')
+            return
+        
+        if amount <= 0:
+            await ctx.send('bet at least 1 coin!')
+            ctx.command.reset_cooldown(ctx)
+            return
+
+        current_bal = state.get_balance(ctx.author.id)
+        if current_bal < amount:
+            await ctx.send('you do not have enough coins!')
+            ctx.command.reset_cooldown(ctx)
+            return
+
+        prediction = {"user_id": ctx.author.id, "amount": amount}
+
+        bet = bet.lower()
+        
+        if bet == 'heads':
+            state.heads.append(prediction)
+        elif bet == 'tails':
+            state.tails.append(prediction)
+        else:
+            await ctx.send('bet on either heads or tails!')
+            ctx.command.reset_cooldown(ctx)
+            return
+
+        print(f'{ctx.author} bet {amount} on {bet}')
+        state.add_balance(ctx.author.id, -amount)
+        await ctx.send(f"you bet {amount} on {bet}!")
+
+    @commands.command()
+    @commands.cooldown(1, 10800, commands.BucketType.user) # 3h, per-user cooldown
     async def trivia(self, ctx):
-        """Get asked a random trivia question."""
+        """Get asked a random trivia question for a chance to win coins!"""
         global q, correctAnswer, original_user
         if q:
             await ctx.send('wait till someone else answers their trivia first!')
@@ -59,7 +100,7 @@ class Fun(commands.Cog):
             if message.author.id == original_user:
                 if message.content in ['A', 'B', 'C']:
                     if message.content == correctAnswer:
-                        coins = random.randint(100, 500)
+                        coins = random.randint(350, 1200)
                         state.add_balance(original_user, coins)
                         await message.channel.send(f'correct! you earned {coins} coins.')
                         q = None

@@ -59,6 +59,16 @@ class Chaos(commands.Cog):
         if message.author.bot: # ignore if message is a bot
             return
 
+        if state.rocketActive > 0:
+            if message.mentions:
+                target = message.mentions[0]
+                try:
+                    await target.timeout(timedelta(minutes=3))
+                    await message.channel.send(f'{target} was blown up by a rocket!')
+                except discord.Forbidden:
+                    await message.channel.send(f'{target} dodged a rocket!')
+                state.rocketActive -= 1
+
         if random.random() < 0.001: # .1% chance
             try:
                 roll = random.random()
