@@ -9,11 +9,12 @@ import logging
 import random
 import time
 import json
-from datetime import timedelta
+from datetime import date 
 from dotenv import load_dotenv
 import asyncio
 
 import state
+import fm
 
 load_dotenv()
 
@@ -133,11 +134,41 @@ async def use(ctx, item_name: str, target: discord.Member = None): #type: ignore
     else:
         await ctx.send(f"unable to use item: {result.get('error')}")
 
-bot.command()
+@bot.command()
 async def inventory(ctx):
     """Check your inventory"""
     inventory = state.get_inventory(ctx.author.id)
     await ctx.send(inventory)
+
+@bot.command()
+@commands.cooldown(1, 172800, commands.BucketType.member)
+async def submitSong(ctx, artist: str, *, track: str):
+    """[artist] [track] | Submit a song for Song of the Day!"""
+    info = fm.get_track_info(artist, track)
+    if not info:
+        ctx.command.reset_cooldown(ctx)
+        await ctx.send("unable to fetch song. check your spelling?")
+        return
+
+    check = state.check_song_list(info['artist']['name'], info['name'])
+    if check:
+        ctx.command.reset_cooldown(ctx)
+        await ctx.send('song has already been submitted or posted, try a new one!')
+        return
+
+    state.add_song_submission(ctx.author.id, info['artist']['name'], info['name'])
+    print(f'{ctx.author} submitted {track} from {artist}')
+    await ctx.send(f"submitted **{info['name']}** by *{info['artist']['name']}*!")
+
+@bot.command(hidden=True)
+@commands.has_permissions(administrator=True)
+async def refreshSOTD(ctx):
+    try:
+        state.remove_posted_songs()
+        await ctx.send(f'song database refreshed!')
+    except KeyError:
+        await ctx.send(f'failed to refresh database, check logs.')
+        print(KeyError)
 
 # command errors #
 
@@ -145,7 +176,9 @@ async def inventory(ctx):
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         cd = error.retry_after
-        if cd >= 60:
+        if cd >= 3600:
+            await ctx.send(f"command on cooldown! try in {cd / 3600:.1f}h")
+        elif cd >= 60:
             await ctx.send(f"command on cooldown! try in {cd / 60:.1f}m")
         else:
             await ctx.send(f"command on cooldown! try in {cd:.1f}s")
@@ -204,8 +237,8 @@ async def expired_roles_check():
 
     con.commit()
     con.close()
-
-@tasks.loop(minutes=1800)
+    
+@tasks.loop(hours=6)
 async def coinflip():
     if not state.heads and not state.tails:
         print('nobody bet on current coinflip')
@@ -215,7 +248,7 @@ async def coinflip():
     winners = state.heads if result == 'heads' else state.tails
     losers = state.tails if result == 'heads' else state.heads
 
-    channel_id = bot.get_channel(1536364675636269076)
+    channel_id = bot.get_channel(1523481530121453700)
 
     total_winners_pot = sum(p['amount'] for p in winners)
     total_losers_pot = sum(p['amount'] for p in losers)
@@ -235,7 +268,51 @@ async def coinflip():
     print(f'{result} won, awarded {len(winners)} users.')
     state.heads.clear()
     state.tails.clear()
-        
+
+@tasks.loop(hours=24)
+async def sotd():
+    channel = bot.get_channel(1541449279598624818)
+    song = state.get_song()
+    if not song:
+        print('failed to submit song, empty list?')
+        return
+
+    song_id, user_id, artist, track = song
+    info = fm.get_track_info(artist, track)
+
+    if not info:
+        print('unable to fetch last.fm info, broken argument?')
+        state.mark_song_posted(song_id)
+        return
+
+    summary = info.get('wiki', {}).get('summary', 'Wiki summary is not available')
+    clean_summary = summary.split('<a')[0].strip()
+
+    embed = discord.Embed(
+        title=f'{info['name']} by {info['artist']['name']}',
+        url=info.get('url'),
+        description=clean_summary if clean_summary else info['wiki']['summary'],
+        color=discord.Color.red()
+    )
+
+    images = info.get('album', {}).get('image', [])
+    if images:
+        embed.set_thumbnail(url=images[-1]['#text'])
+
+    playcount = int(info.get('playcount'))
+
+    embed.add_field(name="Submitted by", value=f"<@{user_id}>", inline=True)
+    embed.add_field(name="In Album", value=info.get('album', {}).get('title', 'N/A'), inline=True)
+    embed.add_field(name="Total Play Count", value=f"{playcount:,}", inline=True) 
+    embed.set_footer(text=f"Song of the Day for {date.today().strftime('%B %dth, %Y')}")
+
+    msg = await channel.send(f'# <@&1541448747224010772>', embed=embed) #type: ignore
+    await msg.add_reaction("❤️‍🔥")
+    await msg.add_reaction("❤️")
+    await msg.add_reaction("💔")
+
+    state.mark_song_posted(song_id)
+
 # start-up
 @bot.event
 async def on_ready():
@@ -243,6 +320,7 @@ async def on_ready():
     rebuild.start()
     expired_roles_check.start()
     coinflip.start()
+    sotd.start()
 
 async def main():
     async with bot:

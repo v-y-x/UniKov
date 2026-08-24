@@ -4,7 +4,10 @@ import requests
 import time
 import datetime as dt
 import discord
+import random
 from dotenv import load_dotenv
+
+import fm
 
 load_dotenv()
 
@@ -85,6 +88,52 @@ def init_db():
         PRIMARY KEY (user_id, role_id)
         )
     """)
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS song_subs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        artist TEXT,
+        track TEXT,
+        posted INTEGER DEFAULT 0,
+        UNIQUE(artist, track)
+        )
+    """)
+    con.commit()
+    con.close()
+
+# song of the day functions
+def add_song_submission(user_id, artist, track):
+    con = sqlite3.connect('database.db')
+    con.execute(
+        "INSERT INTO song_subs (user_id, artist, track, posted) VALUES (?, ?, ?, 0) ON CONFLICT (artist, track) DO NOTHING", (user_id, artist, track)
+    )
+    con.commit()
+    con.close()
+
+def check_song_list(artist, track):
+    con = sqlite3.connect('database.db')
+    cursor = con.execute("SELECT artist, track FROM song_subs WHERE artist = ? AND track = ?", (artist, track))
+    song = cursor.fetchall()
+    con.close()
+    return True if song else False
+
+def get_song():
+    con = sqlite3.connect('database.db')
+    cursor = con.execute("SELECT id, user_id, artist, track FROM song_subs WHERE posted = 0")
+    rows = cursor.fetchall()
+    con.close()
+    return random.choice(rows) if rows else None
+
+def mark_song_posted(song_id):
+    con = sqlite3.connect('database.db')
+    con.execute("UPDATE song_subs SET posted = 1 WHERE id = ?", (song_id, ))
+    con.commit()
+    con.close()
+
+def remove_posted_songs():
+    con = sqlite3.connect('database.db')
+    con.execute("DELETE FROM song_subs WHERE posted = 1")
     con.commit()
     con.close()
 
@@ -169,7 +218,7 @@ async def use_item(user_id, item_id, shop_items, source, target_id = None, src =
         user_flags[target_id.id]["set_by"].append(user_id) #type: ignore
         message = f"bomb planted on <@{target_id}>! they currently have {user_flags[target_id.id]['planted']} bomb(s)." #type: ignore
     elif effect == 'nuke_chat':
-        targets = await get_chat_history(src, 5)
+        targets = await get_chat_history(src, 15)
         for id in targets:
             url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{id.author.id}"
             headers = {

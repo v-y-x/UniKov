@@ -24,7 +24,6 @@ async function loadShopItmes() {
 
 loadShopItmes()
 
-topZ = 0
 let windowID = 0
 
 function viewItem(itemID) {
