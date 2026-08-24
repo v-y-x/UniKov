@@ -63,6 +63,7 @@ function closeItem(winID) {
     }
 
 let alertNum = 0
+let topZ = 0
 
 function createWindow(){
     const window = document.createElement('div')

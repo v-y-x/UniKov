@@ -25,7 +25,6 @@ async function loadInventory() {
 
 loadInventory()
 let windowID = 0
-let topZ = 0
 
 function viewItem(itemID) {
     const item = invItems['items'].find(i => i.id === itemID);
