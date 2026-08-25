@@ -269,12 +269,17 @@ async def coinflip():
     state.heads.clear()
     state.tails.clear()
 
-@tasks.loop(hours=24)
+sotddelay = 24
+
+@tasks.loop(hours=sotddelay)
 async def sotd():
+    global sotddelay
     channel = bot.get_channel(1541449279598624818)
     song = state.get_song()
     if not song:
         print('failed to submit song, empty list?')
+        sotddelay = random.randint(18, 30)
+        print(f"new sotd in {sotddelay}")
         return
 
     song_id, user_id, artist, track = song
@@ -283,6 +288,8 @@ async def sotd():
     if not info:
         print('unable to fetch last.fm info, broken argument?')
         state.mark_song_posted(song_id)
+        sotddelay = random.randint(18, 30)
+        print(f"new sotd in {sotddelay}")
         return
 
     summary = info.get('wiki', {}).get('summary', 'Wiki summary is not available')
@@ -312,6 +319,8 @@ async def sotd():
     await msg.add_reaction("💔")
 
     state.mark_song_posted(song_id)
+    sotddelay = random.randint(18, 30)
+    print(f"new sotd in {sotddelay}")
 
 # start-up
 @bot.event
