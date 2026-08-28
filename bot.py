@@ -299,7 +299,7 @@ async def sotd():
     clean_summary = summary.split('<a')[0].strip()
 
     embed = discord.Embed(
-        title=f'{info['name']} by {info['artist']['name']}',
+        title=f"{info['name']} by {info['artist']['name']}",
         url=info.get('url'),
         description=clean_summary if clean_summary else info['wiki']['summary'],
         color=discord.Color.red()
