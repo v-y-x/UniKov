@@ -36,5 +36,15 @@
         "effect": "nuke_chat",
         "discord_only": true,
         "price": 10000
+    },
+    {
+        "id": "sob_machine",
+        "name": "Automatic Sobber",
+        "image": "resources/images/sob.png",
+        "description": "too lazy to self-sob your messages? now you can buy this handy machine that will sob your messages FOR you! lasts for 6 hours.",
+        "effect": "add_role",
+        "role_id": 1542911174859821187,
+        "duration": 21600,
+        "price": 3000
     }
 ]

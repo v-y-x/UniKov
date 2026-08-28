@@ -119,6 +119,9 @@ async def on_message(message):
             state.store_message(message.content, message.guild.id)
             state.globalMsg[message.guild.id] = state.globalMsg.get(message.guild.id, 0) + 1 # add to message count for this server
 
+    if discord.utils.find(lambda r: r.name == "Sob Machine", message.guild.roles) in message.author.roles:
+        await message.add_reaction("😭")
+
     await bot.process_commands(message)
 
 @bot.command()
