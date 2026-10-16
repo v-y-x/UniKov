@@ -6,13 +6,14 @@ import datetime as dt
 import discord
 import random
 from dotenv import load_dotenv
+import re
 
 import fm
 
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_KEY")
-GUILD_ID = 1381807209092223006
+GUILD_ID = os.getenv("GUILD_ID")
 
 # import this file the moment the bot starts at first
 # state.py is used for keeping memory safe so it is never reloaded through cog extensions
@@ -97,6 +98,25 @@ def init_db():
         track TEXT,
         posted INTEGER DEFAULT 0,
         UNIQUE(artist, track)
+        )
+    """)
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS warnings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        moderator_id INTEGER,
+        reason TEXT,
+        timestamp INTEGER
+        )
+    """)
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS mod_stats (
+        user_id INTEGER PRIMARY KEY,
+        warns INTEGER DEFAULT 0,
+        mutes INTEGER DEFAULT 0,
+        bans INTEGER DEFAULT 0
         )
     """)
     con.commit()
@@ -189,6 +209,106 @@ def add_balance(user_id, amount):
 
 heads = [] # {'user_id': int, 'amount': int}
 tails = [] # {'user_id': int, 'amount': int}
+
+# moderation functions
+
+def add_warning(user_id, moderator_id, reason):
+    con = sqlite3.connect('database.db')
+    con.execute("INSERT INTO warnings (user_id, moderator_id, reason, timestamp) VALUES (?, ?, ?, ?)", (user_id, moderator_id, reason, int(time.time())))
+    con.commit()
+    con.close()
+
+def get_warnings(user_id):
+    con = sqlite3.connect('database.db')
+    cursor = con.execute("SELECT moderator_id, reason, timestamp FROM warnings WHERE user_id = ? ORDER BY timestamp DESC", (user_id, ))
+    rows = cursor.fetchall()
+    con.close()
+    return rows
+
+def cleanup_warns():
+    con = sqlite3.connect("database.db")
+
+    user_ids = [row[0] for row in con.execute("SELECT DISTINCT user_id FROM warnings").fetchall()]
+    now = int(time.time())
+
+    for user_id in user_ids:
+        rows = con.execute("SELECT id, timestamp FROM warnings WHERE user_id = ? ORDER BY timestamp ASC", (user_id,)).fetchall()
+
+        count = len(rows)
+
+        if count <= 3:
+            threshold = 7 * 86400
+            for warn_id, timestamp in rows:
+                if now - timestamp > threshold:
+                    con.execute("DELETE FROM warnings WHERE id = ?", (warn_id, ))
+        elif count == 4:
+            threshold = 14 * 86400
+            for warn_id, timestamp in rows:
+                oldest_id, oldest_timestamp = rows[0]
+                if now - oldest_timestamp > threshold:
+                    con.execute("DELETE FROM warnings WHERE id = ?", (oldest_id, ))
+        elif count == 5:
+            threshold = 21 * 86400
+            for warn_id, timestamp in rows:
+                oldest_id, oldest_timestamp = rows[0]  # rows are sorted oldest-first
+                if now - oldest_timestamp > threshold:
+                    con.execute("DELETE FROM warnings WHERE id = ?", (oldest_id, ))
+    print("cleaned up warns!")
+    con.commit()
+    con.close()
+
+def add_mute_role(user_id, role_id, expires_at):
+    con = sqlite3.connect('database.db')
+    con.execute("""
+        INSERT INTO temp_roles (user_id, role_id, expires_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT (user_id, role_id) DO UPDATE SET expires_at = ?
+        """, (user_id, role_id, expires_at, expires_at)
+    )
+    con.commit()
+    con.close()
+
+def remove_temp_role(user_id, role_id):
+    con = sqlite3.connect('database.db')
+    con.execute("DELETE FROM temp_roles WHERE user_id = ? AND role_id = ?", (user_id, role_id))
+    con.commit()
+    con.close() 
+
+def parse_duration(text):
+    match = re.fullmatch(r'(\d+)([mhd])', text.lower())
+    if not match:
+        return None
+
+    amount = int(match.group(1))
+    unit = match.group(2)
+    multipliers = {'m': 60, 'h': 3600, 'd': 86400}
+
+    seconds = amount * multipliers[unit]
+    return seconds if seconds > 0 else None
+
+ALLOWED_ACTIONS = {"warns", "mutes", "bans"}
+
+def add_modstat(user_id, action):
+    if action not in ALLOWED_ACTIONS:
+        raise ValueError(f"{action} is not an allowed action")
+    
+    con = sqlite3.connect('database.db')
+    query = f"""
+    INSERT INTO mod_stats (user_id, {action})
+    VALUES (?, 1)
+    ON CONFLICT (user_id) DO UPDATE SET {action} = {action} + 1
+    """
+    con.execute(query, (user_id, ))
+    con.commit()
+    con.close()
+
+def get_modstat(user_id):
+    con = sqlite3.connect('database.db')
+    cur = con.cursor()
+    cur.execute("SELECT warns, mutes, bans FROM mod_stats WHERE user_id = ?", (user_id, ))
+    rows = cur.fetchall()
+    con.close()
+    return rows if rows else None
 
 # item functions
 

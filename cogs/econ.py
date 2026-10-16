@@ -28,7 +28,7 @@ class Econ(commands.Cog):
         state.add_balance(member.id, amount)
         await ctx.send(f'gave {amount} coins to {member.mention}!')
 
-    @commands.command()
+    @commands.command(aliases=["bal"])
     @commands.cooldown(1, 5, commands.BucketType.member) # 5 seconds, per-user per-server cooldown
     async def balance(self, ctx):
         """Check your current balance"""

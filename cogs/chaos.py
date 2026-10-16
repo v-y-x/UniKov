@@ -15,7 +15,7 @@ class Chaos(commands.Cog):
     @commands.command()
     @commands.cooldown(1, 5400, commands.BucketType.member) # 1.5 hour, per-user per-server cooldown
     async def plant(self, ctx, user: str):
-        """ [user id/mention] | Plants a bomb on targeted user. 90 minute cooldown"""
+        """ [user id/mention] | Plants a bomb on targeted user"""
         bot_member = ctx.guild.me # get object data of the bot
     
         if not bot_member.guild_permissions.moderate_members: # fall back for no permissions

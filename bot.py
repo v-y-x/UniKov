@@ -137,7 +137,7 @@ async def use(ctx, item_name: str, target: discord.Member = None): #type: ignore
     else:
         await ctx.send(f"unable to use item: {result.get('error')}")
 
-@bot.command()
+@bot.command(aliases=["inv"])
 async def inventory(ctx):
     """Check your inventory"""
     inventory = state.get_inventory(ctx.author.id)
@@ -216,14 +216,14 @@ async def rebuild():
                     print(f'unable to build model for {guild_id} - likely not enough data\nLOG: {KeyError}')
                     continue
 
-@tasks.loop(minutes=10)
+@tasks.loop(minutes=1)
 async def expired_roles_check():
     now = int(time.time())
     con = sqlite3.connect('database.db')
     cursor = con.execute("SELECT user_id, role_id FROM temp_roles WHERE expires_at <= ?", (now, ))
     expired = cursor.fetchall()
 
-    guild = bot.get_guild(state.GUILD_ID)
+    guild = bot.get_guild(state.GUILD_ID) #type: ignore
     for user_id, role_id in expired:
         member = guild.get_member(user_id) # type: ignore
         role = guild.get_role(role_id)  # type: ignore
@@ -325,6 +325,10 @@ async def sotd():
     sotddelay = random.randint(18, 30)
     print(f"new sotd in {sotddelay}")
 
+@tasks.loop(hours=24)
+async def cleanup_warnings():
+    state.cleanup_warns()
+
 # start-up
 @bot.event
 async def on_ready():
@@ -333,12 +337,14 @@ async def on_ready():
     expired_roles_check.start()
     coinflip.start()
     sotd.start()
+    cleanup_warnings.start()
 
 async def main():
     async with bot:
         await bot.load_extension('cogs.chaos')
         await bot.load_extension('cogs.econ')
         await bot.load_extension('cogs.fun')
+        await bot.load_extension('cogs.moderation')
         await bot.start(bot_token) #type: ignore
 
 discord.utils.setup_logging(handler=handler)
