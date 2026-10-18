@@ -103,7 +103,8 @@ class Moderation(commands.Cog):
         except discord.Forbidden:
             await ctx.send(f"Unable to unban. Check my permissions!")
 
-    MUTED_ROLE_ID = 1555917216631750717
+    MUTED_ROLE_ID = 1390858691229778073
+    VERIFIED_ROLE_ID = 1541826415299796992
 
     @commands.command(hidden=True)
     @commands.has_permissions(moderate_members=True)
@@ -118,12 +119,15 @@ class Moderation(commands.Cog):
             return
 
         role = ctx.guild.get_role(self.MUTED_ROLE_ID)
+        ver = ctx.guild.get_role(self.VERIFIED_ROLE_ID)
+
         if role is None:
             await ctx.send("Couldn't find the muted role, check that ID is set properly.")
             return
         
         try:
             await member.add_roles(role, reason=reason)
+            await member.remove_roles(ver)
         except discord.Forbidden:
             await ctx.send("Unable to add mute, check my role permissions!")
             return
@@ -144,9 +148,11 @@ class Moderation(commands.Cog):
     @commands.has_permissions(moderate_members=True)
     async def unmute(self, ctx, member: discord.Member):
         role = ctx.guild.get_role(self.MUTED_ROLE_ID)
+        ver = role = ctx.guild.get_role(self.VERIFIED_ROLE_ID)
 
         try:
             await member.remove_roles(role)
+            await member.add_roles(ver)
         except discord.Forbidden:
             await ctx.send("Unable to unmute, check my role permissions!")
             return
