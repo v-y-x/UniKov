@@ -148,7 +148,7 @@ class Moderation(commands.Cog):
     @commands.has_permissions(moderate_members=True)
     async def unmute(self, ctx, member: discord.Member):
         role = ctx.guild.get_role(self.MUTED_ROLE_ID)
-        ver = role = ctx.guild.get_role(self.VERIFIED_ROLE_ID)
+        ver = ctx.guild.get_role(self.VERIFIED_ROLE_ID)
 
         try:
             await member.remove_roles(role)
