@@ -1,6 +1,7 @@
 from discord.ext import commands
 import random
 import json
+from random_unicode_emoji import random_emoji
 
 import state
 
@@ -88,6 +89,13 @@ class Fun(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        roll = random.random()
+        print(roll)
+        if roll > 0.9:
+            emoji = random_emoji()
+            print(f'printed emoji {emoji[0]}')
+            await message.add_reaction(emoji[0])
+
         global q, correctAnswer, original_user, current_msg_count
         if q:
             current_msg_count += 1
