@@ -46,5 +46,14 @@
         "role_id": 1542911174859821187,
         "duration": 21600,
         "price": 3000
+    },
+    {
+        "id": "key",
+        "name": "Chest Key",
+        "image": "resources/images/key.png",
+        "description": "unable to find a random key in the server? buy one directly instead! it might make you profit, or have your face blown off by a bomb. either way, it's fun! use &openChest when one is available.",
+        "effect": "open_chest",
+        "price": 5000,
+        "useable": false
     }
 ]

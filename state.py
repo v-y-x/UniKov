@@ -179,6 +179,14 @@ def remove_item(user_id, item_id):
     con.commit()
     con.close()
 
+def check_item(user_id, item_id):
+    con = sqlite3.connect('database.db')
+    cur = con.cursor()
+    cur.execute("SELECT item_id, quantity FROM inventory WHERE item_id = ? AND user_id = ?", (item_id, user_id))
+    rows = cur.fetchall()
+    con.close()
+    return rows
+
 def get_inventory(user_id):
     con = sqlite3.connect('database.db')
     cur = con.cursor()
@@ -326,6 +334,9 @@ async def use_item(user_id, item_id, shop_items, source, target_id = None, src =
 
     if item.get('requires_target') and target_id is None:
         return {"success": False, "error": "you need to mention someone or give a user ID."}
+    
+    if item.get('useable') is False:
+        return {"success": False, "error": "this item isn't useable directly, try a different command"}
 
     if owned.get(item_id, 0) <= 0:
         return {"success": False, "error": "you do not own this item!"}
